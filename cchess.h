@@ -89,13 +89,17 @@ size_t cchess_board_moves(
     cchess_move_t **moves); // calculates all possible moves, without the moves
                             // that violate king safety
 
-typedef cchess_move_t (*cchess_player_input_callback)(cchess_move_t *moves,
-                                                      size_t len);
-typedef void (*cchess_player_output_callback)(cchess_game_t game);
+typedef struct cchess_player_s cchess_player_t;
 
-typedef struct {
+typedef cchess_move_t (*cchess_player_input_callback)(cchess_player_t *self,
+                                                      cchess_move_t *moves,
+                                                      size_t len);
+typedef void (*cchess_player_output_callback)(cchess_player_t *self,
+                                              cchess_game_t game);
+
+struct cchess_player_s {
   cchess_player_output_callback out;
   cchess_player_input_callback in;
-} cchess_player_t;
+};
 
-cchess_game_t cchess_play_game(cchess_player_t white, cchess_player_t black);
+cchess_game_t cchess_play_game(cchess_player_t *white, cchess_player_t *black);

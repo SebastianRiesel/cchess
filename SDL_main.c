@@ -8,10 +8,12 @@
 #include <SDL3/SDL_thread.h>
 #include <SDL3/SDL_timer.h>
 #define SDL_MAIN_USE_CALLBACKS 1 /* use the callbacks instead of main() */
-#include "cchess.h"
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <SDL3_image/SDL_image.h>
+
+#include "cchess.h"
+#include "cchess_ai.h"
 
 #define FPS 60
 #define TARGET_TICKS 1000 / FPS
@@ -63,13 +65,16 @@ typedef struct {
 
 AppState *appstate;
 
-void update_board(cchess_game_t game) {
+void update_board(cchess_player_t *self, cchess_game_t game) {
   SDL_LockMutex(appstate->board_mutex);
   appstate->current_board = game.board;
   SDL_UnlockMutex(appstate->board_mutex);
 }
 
-cchess_move_t wait_for_input(cchess_move_t *possible_moves, size_t buf_len) {
+size_t randint(size_t max) { return SDL_rand(max); }
+
+cchess_move_t wait_for_input(cchess_player_t *self,
+                             cchess_move_t *possible_moves, size_t buf_len) {
   SDL_LockMutex(appstate->input_mutex);
   appstate->pos1_selected = 0;
   appstate->pos2_selected = 0;
@@ -146,9 +151,10 @@ cchess_move_t wait_for_input(cchess_move_t *possible_moves, size_t buf_len) {
 
 int start_game(void *data) {
   cchess_player_t white = {update_board, wait_for_input};
-  cchess_player_t black = {update_board, wait_for_input};
+  cchess_player_t *black = (cchess_player_t *)cchess_ai_minimax_player_create(
+      4, cchess_ai_minimax_piece_score);
 
-  cchess_game_t game = cchess_play_game(white, black);
+  cchess_game_t game = cchess_play_game(&white, black);
   char *result_str = game.state == CCHESS_STATE_STALEMATE   ? "stalemate"
                      : game.state == CCHESS_STATE_WHITE_WON ? "white"
                                                             : "black";

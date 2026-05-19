@@ -465,7 +465,7 @@ void cchess_board_move(cchess_board_t *board, cchess_move_t move) {
 
   if (move.type == CCHESS_MOVE_PROMOTION) {
     cchess_board_set_piece(
-        board, move.x1, move.y1,
+        board, move.x2, move.y2,
         (cchess_piece_t){piece.color, move.promotion_type, true, false});
   }
 
@@ -536,14 +536,18 @@ size_t cchess_board_moves(cchess_board_t *board, cchess_color_t color,
   return next_copy_index;
 }
 
-cchess_game_t cchess_play_game(cchess_player_t white, cchess_player_t black) {
+cchess_game_t cchess_play_game(cchess_player_t *white, cchess_player_t *black) {
   cchess_game_t game;
   cchess_board_init(&game.board);
   game.current_color = CCHESS_COLOR_WHITE;
   game.state = CCHESS_STATE_RUNNING;
   while (true) {
-    white.out(game);
-    black.out(game);
+    if (white->out != NULL) {
+      white->out(white, game);
+    }
+    if (black->out != NULL) {
+      black->out(black, game);
+    }
 
     cchess_move_t *possible_moves;
     size_t moves_len =
@@ -565,10 +569,10 @@ cchess_game_t cchess_play_game(cchess_player_t white, cchess_player_t black) {
     cchess_move_t player_move;
     switch (game.current_color) {
     case CCHESS_COLOR_WHITE:
-      player_move = white.in(possible_moves, moves_len);
+      player_move = white->in(white, possible_moves, moves_len);
       break;
     case CCHESS_COLOR_BLACK:
-      player_move = black.in(possible_moves, moves_len);
+      player_move = black->in(black, possible_moves, moves_len);
       break;
     }
 
