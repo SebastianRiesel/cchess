@@ -46,8 +46,13 @@ typedef struct {
   size_t y2;
   cchess_move_type_t type;
   cchess_piece_type_t promotion_type;
-
 } cchess_move_t;
+
+typedef struct {
+  cchess_move_t move;
+  cchess_piece_t captured_piece; // for reversing the move
+  cchess_piece_t moved_piece;    // original piece
+} cchess_stored_move_t;
 
 void cchess_board_clear(cchess_board_t *board);
 void cchess_board_init(cchess_board_t *board);
@@ -57,7 +62,7 @@ cchess_piece_t cchess_board_set_piece(cchess_board_t *board, size_t x, size_t y,
                                       cchess_piece_t piece);
 cchess_piece_t cchess_board_raw_move(cchess_board_t *board, size_t x1,
                                      size_t y1, size_t x2, size_t y2);
-void cchess_board_move(cchess_board_t *board, cchess_move_t move);
+void cchess_game_move(cchess_game_t *game, cchess_move_t move);
 
 char cchess_piece_type_to_char(cchess_piece_type_t pt);
 int cchess_move_to_string(cchess_move_t move, char *dest, size_t size);
@@ -67,18 +72,10 @@ int cchess_board_to_string(cchess_board_t *board, char *dest, size_t size);
 bool cchess_board_color_is_in_check(cchess_board_t *board,
                                     cchess_color_t color);
 
-typedef enum {
-  CCHESS_STATE_RUNNING,
-  CCHESS_STATE_WHITE_WON,
-  CCHESS_STATE_BLACK_WON,
-  CCHESS_STATE_STALEMATE
-} cchess_game_state_t;
-
-typedef struct {
-  cchess_board_t board;
-  cchess_color_t current_color;
-  cchess_game_state_t state;
-} cchess_game_t;
+struct cchess_player_s {
+  cchess_player_output_callback out;
+  cchess_player_input_callback in;
+};
 
 size_t cchess_board_unfiltered_moves(
     cchess_board_t *board, cchess_color_t color,
@@ -88,18 +85,5 @@ size_t cchess_board_moves(
     cchess_board_t *board, cchess_color_t color,
     cchess_move_t **moves); // calculates all possible moves, without the moves
                             // that violate king safety
-
-typedef struct cchess_player_s cchess_player_t;
-
-typedef cchess_move_t (*cchess_player_input_callback)(cchess_player_t *self,
-                                                      cchess_move_t *moves,
-                                                      size_t len);
-typedef void (*cchess_player_output_callback)(cchess_player_t *self,
-                                              cchess_game_t game);
-
-struct cchess_player_s {
-  cchess_player_output_callback out;
-  cchess_player_input_callback in;
-};
 
 cchess_game_t cchess_play_game(cchess_player_t *white, cchess_player_t *black);

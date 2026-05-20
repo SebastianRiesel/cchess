@@ -437,7 +437,7 @@ size_t cchess_board_unfiltered_moves(cchess_board_t *board,
 }
 #undef APPEND_MOVE
 
-void cchess_board_move(cchess_board_t *board, cchess_move_t move) {
+void cchess_game_move(cchess_board_t *board, cchess_move_t move) {
 
   // clear all en_passantable pawns
   for (size_t x = 0; x < 8; x++) {
