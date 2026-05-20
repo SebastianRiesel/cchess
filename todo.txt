@@ -1,0 +1,3 @@
+- move reversing
+- alpha-beta pruning
+- SDL_player implementation with internal appstate-pointer

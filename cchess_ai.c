@@ -52,7 +52,8 @@ float cchess_ai_minimax_piece_score(cchess_game_t *game) {
 }
 
 float minimax_player_get_score(cchess_ai_minimax_player_t *self,
-                               cchess_game_t game, uint8_t current_depth) {
+                               cchess_game_t game, float white_best_move,
+                               float black_best_move, uint8_t current_depth) {
   if (current_depth == self->depth) {
     return self->score_func(&game);
   }
@@ -82,14 +83,32 @@ float minimax_player_get_score(cchess_ai_minimax_player_t *self,
     cchess_game_t game_copy = game;
     cchess_board_move(&game_copy.board, move);
     game_copy.current_color = CCHESS_COLOR_OTHER_COLOR(game_copy.current_color);
-    float score = minimax_player_get_score(self, game_copy, current_depth + 1);
+
     if (game.current_color == CCHESS_COLOR_WHITE) {
+      float score = minimax_player_get_score(
+          self, game_copy, white_best_move, black_best_move, current_depth + 1);
       if (score > best_score) {
         best_score = score;
       }
+      if (best_score >= white_best_move) {
+        white_best_move = best_score;
+      }
+      if (best_score >= black_best_move) {
+        break;
+      }
     } else {
+      float score = minimax_player_get_score(
+          self, game_copy, white_best_move, black_best_move, current_depth + 1);
       if (score < best_score) {
         best_score = score;
+      }
+
+      if (best_score <= black_best_move) {
+        black_best_move = best_score;
+      }
+
+      if (best_score <= white_best_move) {
+        break;
       }
     }
   }
@@ -127,13 +146,17 @@ cchess_move_t minimax_player_get_move(cchess_player_t *self,
     cchess_game_t game_copy = *game;
     cchess_board_move(&game_copy.board, move);
     game_copy.current_color = CCHESS_COLOR_OTHER_COLOR(game_copy.current_color);
-    float score = minimax_player_get_score(player, game_copy, 1);
+
     if (game->current_color == CCHESS_COLOR_WHITE) {
+      float score =
+          minimax_player_get_score(player, game_copy, best_score, FLT_MAX, 1);
       if (score > best_score) {
         best_score = score;
         best_move = move;
       }
     } else {
+      float score =
+          minimax_player_get_score(player, game_copy, -FLT_MAX, best_score, 1);
       if (score < best_score) {
         best_score = score;
         best_move = move;
