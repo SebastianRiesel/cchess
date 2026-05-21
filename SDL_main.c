@@ -65,9 +65,9 @@ typedef struct {
 
 AppState *appstate;
 
-void update_board(cchess_player_t *self, cchess_game_t game) {
+void update_board(cchess_player_t *self, cchess_game_t *game) {
   SDL_LockMutex(appstate->board_mutex);
-  appstate->current_board = game.board;
+  appstate->current_board = game->board;
   SDL_UnlockMutex(appstate->board_mutex);
 }
 
@@ -151,6 +151,8 @@ cchess_move_t wait_for_input(cchess_player_t *self,
 
 int start_game(void *data) {
   cchess_player_t white = {update_board, wait_for_input};
+  //cchess_player_t black = {update_board, wait_for_input};
+
   cchess_player_t *black = (cchess_player_t *)cchess_ai_minimax_player_create(
       4, cchess_ai_minimax_piece_score);
 

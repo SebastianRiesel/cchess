@@ -48,31 +48,30 @@ float cchess_ai_minimax_piece_score(cchess_game_t *game) {
       }
     }
   }
-  return score;
+  return score+(float)rand() / RAND_MAX;
 }
 
 float minimax_player_get_score(cchess_ai_minimax_player_t *self,
-                               cchess_game_t game, float white_best_move,
-                               float black_best_move, uint8_t current_depth) {
+                               cchess_game_t* game, uint8_t current_depth) {
   if (current_depth == self->depth) {
-    return self->score_func(&game);
+    return self->score_func(game);
   }
 
   cchess_move_t *possible_moves;
   size_t moves_len =
-      cchess_board_moves(&game.board, game.current_color, &possible_moves);
+      cchess_game_moves(game, &possible_moves);
 
   if (moves_len == 0) {
     free(possible_moves);
-    if (cchess_board_color_is_in_check(&game.board, game.current_color)) {
-      return game.current_color == CCHESS_COLOR_WHITE ? -FLT_MAX + current_depth
+    if (cchess_game_is_in_check(game)) {
+      return game->current_color == CCHESS_COLOR_WHITE ? -FLT_MAX + current_depth
                                                       : FLT_MAX - current_depth;
     }
     return 0;
   }
   float best_score;
 
-  if (game.current_color == CCHESS_COLOR_WHITE) {
+  if (game->current_color == CCHESS_COLOR_WHITE) {
     best_score = -FLT_MAX;
   } else {
     best_score = FLT_MAX;
@@ -80,37 +79,24 @@ float minimax_player_get_score(cchess_ai_minimax_player_t *self,
 
   for (size_t i = 0; i < moves_len; i++) {
     cchess_move_t move = possible_moves[i];
-    cchess_game_t game_copy = game;
-    cchess_board_move(&game_copy.board, move);
-    game_copy.current_color = CCHESS_COLOR_OTHER_COLOR(game_copy.current_color);
+    cchess_game_move(game, move);
 
-    if (game.current_color == CCHESS_COLOR_WHITE) {
+    if (game->current_color == CCHESS_COLOR_BLACK) {
+      // this means white moved, this is whites branch
       float score = minimax_player_get_score(
-          self, game_copy, white_best_move, black_best_move, current_depth + 1);
+          self, game, current_depth + 1);
       if (score > best_score) {
         best_score = score;
       }
-      if (best_score >= white_best_move) {
-        white_best_move = best_score;
-      }
-      if (best_score >= black_best_move) {
-        break;
-      }
     } else {
+      // this means white moved, this is whites branch
       float score = minimax_player_get_score(
-          self, game_copy, white_best_move, black_best_move, current_depth + 1);
+          self, game, current_depth + 1);
       if (score < best_score) {
         best_score = score;
       }
-
-      if (best_score <= black_best_move) {
-        black_best_move = best_score;
-      }
-
-      if (best_score <= white_best_move) {
-        break;
-      }
     }
+    cchess_game_reverse_move(game);
   }
 
   free(possible_moves);
@@ -120,10 +106,10 @@ float minimax_player_get_score(cchess_ai_minimax_player_t *self,
 cchess_move_t minimax_player_get_move(cchess_player_t *self,
                                       cchess_move_t *moves, size_t buf_len) {
   cchess_ai_minimax_player_t *player = (cchess_ai_minimax_player_t *)self;
-  cchess_game_t *game = &player->current_game;
+  cchess_game_t *game = player->current_game;
   cchess_move_t *possible_moves;
   size_t moves_len =
-      cchess_board_moves(&game->board, game->current_color, &possible_moves);
+      cchess_game_moves(game, &possible_moves);
 
   if (moves_len == 0) {
     free(possible_moves);
@@ -143,29 +129,28 @@ cchess_move_t minimax_player_get_move(cchess_player_t *self,
 
   for (size_t i = 0; i < moves_len; i++) {
     cchess_move_t move = possible_moves[i];
-    cchess_game_t game_copy = *game;
-    cchess_board_move(&game_copy.board, move);
-    game_copy.current_color = CCHESS_COLOR_OTHER_COLOR(game_copy.current_color);
+    cchess_game_move(game, move);
 
-    if (game->current_color == CCHESS_COLOR_WHITE) {
+    if (game->current_color == CCHESS_COLOR_BLACK) { // this means white moved
       float score =
-          minimax_player_get_score(player, game_copy, best_score, FLT_MAX, 1);
+          minimax_player_get_score(player, game, 1);
       if (score > best_score) {
         best_score = score;
         best_move = move;
       }
     } else {
       float score =
-          minimax_player_get_score(player, game_copy, -FLT_MAX, best_score, 1);
+          minimax_player_get_score(player, game, 1);
       if (score < best_score) {
         best_score = score;
         best_move = move;
       }
     }
+    cchess_game_reverse_move(game);
   }
   return best_move;
 }
-void minimax_player_store_game(cchess_player_t *self, cchess_game_t game) {
+void minimax_player_store_game(cchess_player_t *self, cchess_game_t* game) {
   cchess_ai_minimax_player_t *player = (cchess_ai_minimax_player_t *)self;
   player->current_game = game;
 }

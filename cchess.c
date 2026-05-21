@@ -1,4 +1,5 @@
 #include "cchess.h"
+#include <SDL3/SDL_log.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -6,9 +7,48 @@
 #include <string.h>
 #define ARR_INDEX(x, y) (y * 8 + x)
 
+#define STORED_MOVE_STACK_INIT_CAP 500
+cchess_stored_move_stack_t *cchess_stored_move_stack_create() {
+  cchess_stored_move_t *moves = (cchess_stored_move_t *)malloc(
+      sizeof(cchess_stored_move_t) * STORED_MOVE_STACK_INIT_CAP);
+
+  cchess_stored_move_stack_t *stack =
+      (cchess_stored_move_stack_t *)malloc(sizeof(cchess_stored_move_stack_t));
+  *stack = (cchess_stored_move_stack_t){moves, 0, STORED_MOVE_STACK_INIT_CAP};
+
+  return stack;
+}
+
+void cchess_stored_move_stack_destroy(cchess_stored_move_stack_t *stack) {
+  free(stack->moves);
+  free(stack);
+}
+
+void cchess_stored_move_stack_push(cchess_stored_move_stack_t *stack,
+                                   cchess_stored_move_t move) {
+  if (stack->size >= stack->capacity) {
+    stack->moves = realloc(stack->moves,
+                           stack->capacity * 2 * sizeof(cchess_stored_move_t));
+    stack->capacity *= 2;
+  }
+
+  stack->moves[stack->size] = move;
+  stack->size++;
+}
+
+cchess_stored_move_t
+cchess_stored_move_stack_pop(cchess_stored_move_stack_t *stack) {
+  cchess_stored_move_t move = stack->moves[--(stack->size)];
+  return move;
+}
+
+size_t cchess_stored_move_stack_size(cchess_stored_move_stack_t *stack) {
+  return stack->size;
+}
+
 void cchess_board_clear(cchess_board_t *board) {
   for (size_t i = 0; i < 64; i++) {
-    cchess_piece_t p = {CCHESS_COLOR_WHITE, CCHESS_PIECE_NONE, 0, 0};
+    cchess_piece_t p = {CCHESS_COLOR_WHITE, CCHESS_PIECE_NONE, 0};
     board->grid[i] = p;
   }
 }
@@ -17,7 +57,7 @@ void cchess_board_init(cchess_board_t *board) {
   cchess_board_clear(board);
 
 #define BGA(x, y) (board->grid[ARR_INDEX(x, y)])
-#define CCP(color, type) ((cchess_piece_t){color, type, 0, 0})
+#define CCP(color, type) ((cchess_piece_t){color, type, 0})
   // Rooks
   BGA(0, 0) = CCP(CCHESS_COLOR_WHITE, CCHESS_PIECE_ROOK);
   BGA(7, 0) = CCP(CCHESS_COLOR_WHITE, CCHESS_PIECE_ROOK);
@@ -70,7 +110,7 @@ cchess_piece_t cchess_board_raw_move(cchess_board_t *board, size_t x1,
   cchess_piece_t p = board->grid[ARR_INDEX(x2, y2)];
   board->grid[ARR_INDEX(x2, y2)] = board->grid[ARR_INDEX(x1, y1)];
   board->grid[ARR_INDEX(x1, y1)] =
-      (cchess_piece_t){CCHESS_COLOR_WHITE, CCHESS_PIECE_NONE, 0, 0};
+      (cchess_piece_t){CCHESS_COLOR_WHITE, CCHESS_PIECE_NONE, 0};
   return p;
 }
 
@@ -226,10 +266,10 @@ size_t append_walk(cchess_board_t *board, cchess_color_t color, size_t x,
   return buf_len;
 }
 
-size_t cchess_board_unfiltered_moves(cchess_board_t *board,
-                                     cchess_color_t color,
-                                     cchess_move_t **moves) {
-
+size_t cchess_game_unfiltered_moves(cchess_game_t *game,
+                                    cchess_move_t **moves) {
+  cchess_board_t *board = &game->board;
+  cchess_color_t color = game->current_color;
   // assume there are no positions, where more than 500 moves are possible
   cchess_move_t *move_buf = (cchess_move_t *)calloc(500, sizeof(cchess_move_t));
   size_t buf_len = 0;
@@ -281,7 +321,9 @@ size_t cchess_board_unfiltered_moves(cchess_board_t *board,
             cchess_piece_t neighbour_piece =
                 cchess_board_get_piece(board, x + 1, y);
             if (neighbour_piece.type == CCHESS_PIECE_PAWN &&
-                neighbour_piece.pawn_is_en_passantable) {
+                neighbour_piece.color != piece.color &&
+                game->en_passant_x == (int)(x + 1) &&
+                game->en_passant_y == (int)y) {
               cchess_move_t move = M(x, y, x + 1, y + pawn_direction);
               move.type = CCHESS_MOVE_EN_PASSANT;
               APPEND_MOVE(move_buf, buf_len, move);
@@ -302,7 +344,9 @@ size_t cchess_board_unfiltered_moves(cchess_board_t *board,
             cchess_piece_t neighbour_piece =
                 cchess_board_get_piece(board, x - 1, y);
             if (neighbour_piece.type == CCHESS_PIECE_PAWN &&
-                neighbour_piece.pawn_is_en_passantable) {
+                neighbour_piece.color != piece.color &&
+                game->en_passant_x == (int)(x - 1) &&
+                game->en_passant_y == (int)y) {
               cchess_move_t move = M(x, y, x - 1, y + pawn_direction);
               move.type = CCHESS_MOVE_EN_PASSANT;
               APPEND_MOVE(move_buf, buf_len, move);
@@ -437,22 +481,25 @@ size_t cchess_board_unfiltered_moves(cchess_board_t *board,
 }
 #undef APPEND_MOVE
 
-void cchess_game_move(cchess_board_t *board, cchess_move_t move) {
+void cchess_game_move(cchess_game_t *game, cchess_move_t move) {
+  cchess_board_t *board = &game->board;
+  cchess_stored_move_t stored_move;
+  stored_move.move = move;
 
-  // clear all en_passantable pawns
-  for (size_t x = 0; x < 8; x++) {
-    for (size_t y = 0; y < 8; y++) {
-      cchess_piece_t p = cchess_board_get_piece(board, x, y);
-      p.pawn_is_en_passantable = false;
-      cchess_board_set_piece(board, x, y, p);
-    }
-  }
+  stored_move.prev_en_passant_x = game->en_passant_x;
+  stored_move.prev_en_passant_y = game->en_passant_y;
 
   cchess_piece_t piece = cchess_board_get_piece(board, move.x1, move.y1);
 
+  stored_move.moved_piece = piece;
+
   // if pawn makes double move, it is en_passantable next turn
   if (move.type == CCHESS_MOVE_PAWN_DOUBLE) {
-    piece.pawn_is_en_passantable = true;
+    game->en_passant_x = move.x1;
+    game->en_passant_y = move.y2;
+  } else {
+    game->en_passant_x = -2;
+    game->en_passant_y = -2;
   }
 
   piece.has_moved = true;
@@ -460,13 +507,15 @@ void cchess_game_move(cchess_board_t *board, cchess_move_t move) {
   // commit piece values onto board
   cchess_board_set_piece(board, move.x1, move.y1, piece);
 
+  stored_move.captured_piece = cchess_board_get_piece(board, move.x2, move.y2);
   // make move
   cchess_board_raw_move(board, move.x1, move.y1, move.x2, move.y2);
 
   if (move.type == CCHESS_MOVE_PROMOTION) {
+
     cchess_board_set_piece(
         board, move.x2, move.y2,
-        (cchess_piece_t){piece.color, move.promotion_type, true, false});
+        (cchess_piece_t){piece.color, move.promotion_type, true});
   }
 
   if (move.type == CCHESS_MOVE_CASTLE) {
@@ -481,30 +530,94 @@ void cchess_game_move(cchess_board_t *board, cchess_move_t move) {
 
   if (move.type == CCHESS_MOVE_EN_PASSANT) {
     if (((ssize_t)move.y2) > ((ssize_t)move.y1)) {
+      stored_move.captured_piece =
+          cchess_board_get_piece(board, move.x2, move.y2 - 1);
       cchess_board_set_piece(board, move.x2, move.y2 - 1,
                              (cchess_piece_t){CCHESS_COLOR_WHITE,
-                                              CCHESS_PIECE_NONE, false, false});
+                                              CCHESS_PIECE_NONE, false});
     } else if (((ssize_t)move.y2) < ((ssize_t)move.y1)) {
+      stored_move.captured_piece =
+          cchess_board_get_piece(board, move.x2, move.y2 + 1);
       cchess_board_set_piece(board, move.x2, move.y2 + 1,
                              (cchess_piece_t){CCHESS_COLOR_WHITE,
-                                              CCHESS_PIECE_NONE, false, false});
+                                              CCHESS_PIECE_NONE, false});
     } else {
       printf("Error! en-passant move data malformed!");
     }
   }
+
+  game->current_color = CCHESS_COLOR_OTHER_COLOR(game->current_color);
+  cchess_stored_move_stack_push(game->moves, stored_move);
 }
 
-bool cchess_board_color_is_in_check(cchess_board_t *board,
-                                    cchess_color_t color) {
-  cchess_color_t other_color = CCHESS_COLOR_OTHER_COLOR(color);
+void cchess_game_reverse_move(cchess_game_t *game) {
+  cchess_stored_move_t stored_move = cchess_stored_move_stack_pop(game->moves);
+  cchess_move_t move = stored_move.move;
+  game->en_passant_x = stored_move.prev_en_passant_x;
+  game->en_passant_y = stored_move.prev_en_passant_y;
+
+  game->current_color = CCHESS_COLOR_OTHER_COLOR(game->current_color);
+
+  switch (move.type) {
+  case CCHESS_MOVE_PAWN_DOUBLE:
+  case CCHESS_MOVE_PROMOTION:
+  case CCHESS_MOVE_NORMAL:
+    cchess_board_set_piece(&game->board, move.x1, move.y1,
+                           stored_move.moved_piece);
+    cchess_board_set_piece(&game->board, move.x2, move.y2,
+                           stored_move.captured_piece);
+
+    break;
+  case CCHESS_MOVE_CASTLE:
+    cchess_board_set_piece(&game->board, move.x1, move.y1,
+                           stored_move.moved_piece);
+    cchess_board_set_piece(
+        &game->board, move.x2, move.y2,
+        (cchess_piece_t){CCHESS_COLOR_WHITE, CCHESS_PIECE_NONE, false});
+    if (((ssize_t)move.x2) > ((ssize_t)move.x1)) {
+      cchess_piece_t rook =
+          cchess_board_get_piece(&game->board, move.x2 - 1, move.y1);
+      rook.has_moved = false;
+      cchess_board_set_piece(&game->board, 7, move.y1, rook);
+      cchess_board_set_piece(&game->board, move.x2 - 1, move.y1, (cchess_piece_t) {CCHESS_COLOR_WHITE, CCHESS_PIECE_NONE, false});
+    } else if (((ssize_t)move.x2) < ((ssize_t)move.x1)) {
+      cchess_piece_t rook =
+          cchess_board_get_piece(&game->board, move.x2 + 1, move.y1);
+      rook.has_moved = false;
+      cchess_board_set_piece(&game->board, 0, move.y1, rook);
+      cchess_board_set_piece(&game->board, move.x2 + 1, move.y1, (cchess_piece_t) {CCHESS_COLOR_WHITE, CCHESS_PIECE_NONE, false});
+    } else {
+      printf("Error! Castle move data malformed in reverse_move!");
+    }
+    break;
+  case CCHESS_MOVE_EN_PASSANT:
+    cchess_board_set_piece(&game->board, move.x1, move.y1,
+                           stored_move.moved_piece);
+    cchess_board_set_piece(
+        &game->board, move.x2, move.y2,
+        (cchess_piece_t){CCHESS_COLOR_WHITE, CCHESS_PIECE_NONE, false});
+    if (((ssize_t)move.y2) > ((ssize_t)move.y1)) {
+      cchess_board_set_piece(&game->board, move.x2, move.y2 - 1,
+                             stored_move.captured_piece);
+    } else if (((ssize_t)move.y2) < ((ssize_t)move.y1)) {
+      cchess_board_set_piece(&game->board, move.x2, move.y2 + 1,
+                             stored_move.captured_piece);
+    } else {
+      printf("Error! en-passant move data malformed!");
+    }
+    break;
+  }
+}
+
+bool cchess_game_is_checking(cchess_game_t *game) {
 
   cchess_move_t *moves;
-  size_t len = cchess_board_unfiltered_moves(board, other_color, &moves);
+  size_t len = cchess_game_unfiltered_moves(game, &moves);
   for (size_t i = 0; i < len; i++) {
     cchess_move_t move = moves[i];
     cchess_piece_t captured_piece =
-        cchess_board_get_piece(board, move.x2, move.y2);
-    if (captured_piece.color == color &&
+        cchess_board_get_piece(&game->board, move.x2, move.y2);
+    if (captured_piece.color == CCHESS_COLOR_OTHER_COLOR(game->current_color) &&
         captured_piece.type == CCHESS_PIECE_KING) {
       free(moves);
       return true;
@@ -514,20 +627,26 @@ bool cchess_board_color_is_in_check(cchess_board_t *board,
   return false;
 }
 
-bool valid_move(cchess_board_t *board, cchess_color_t color,
-                cchess_move_t move) {
-  cchess_board_t board_copy = *board;
-  cchess_board_move(&board_copy, move);
-  return !cchess_board_color_is_in_check(&board_copy, color);
+bool cchess_game_is_in_check(cchess_game_t *game) {
+  game->current_color = CCHESS_COLOR_OTHER_COLOR(game->current_color);
+  bool check = cchess_game_is_checking(game);
+  game->current_color = CCHESS_COLOR_OTHER_COLOR(game->current_color);
+  return check;
 }
 
-size_t cchess_board_moves(cchess_board_t *board, cchess_color_t color,
-                          cchess_move_t **moves) {
+bool valid_move(cchess_game_t *game, cchess_move_t move) {
+  cchess_game_move(game, move);
+  bool valid = !cchess_game_is_checking(game);
+  cchess_game_reverse_move(game);
+  return valid;
+}
+
+size_t cchess_game_moves(cchess_game_t *game, cchess_move_t **moves) {
   cchess_move_t *move_buf;
-  size_t len = cchess_board_unfiltered_moves(board, color, &move_buf);
+  size_t len = cchess_game_unfiltered_moves(game, &move_buf);
   size_t next_copy_index = 0;
   for (size_t i = 0; i < len; i++) {
-    if (valid_move(board, color, move_buf[i])) {
+    if (valid_move(game, move_buf[i])) {
       move_buf[next_copy_index] = move_buf[i];
       next_copy_index++;
     }
@@ -539,22 +658,23 @@ size_t cchess_board_moves(cchess_board_t *board, cchess_color_t color,
 cchess_game_t cchess_play_game(cchess_player_t *white, cchess_player_t *black) {
   cchess_game_t game;
   cchess_board_init(&game.board);
+  game.moves = cchess_stored_move_stack_create();
   game.current_color = CCHESS_COLOR_WHITE;
   game.state = CCHESS_STATE_RUNNING;
   while (true) {
     if (white->out != NULL) {
-      white->out(white, game);
+      white->out(white, &game);
     }
     if (black->out != NULL) {
-      black->out(black, game);
+      black->out(black, &game);
     }
 
     cchess_move_t *possible_moves;
-    size_t moves_len =
-        cchess_board_moves(&game.board, game.current_color, &possible_moves);
+    size_t moves_len = cchess_game_moves(&game, &possible_moves);
 
     if (moves_len == 0) {
-      if (cchess_board_color_is_in_check(&game.board, game.current_color)) {
+
+      if (cchess_game_is_in_check(&game)) {
         if (game.current_color == CCHESS_COLOR_WHITE) {
           game.state = CCHESS_STATE_BLACK_WON;
         } else {
@@ -576,9 +696,7 @@ cchess_game_t cchess_play_game(cchess_player_t *white, cchess_player_t *black) {
       break;
     }
 
-    cchess_board_move(&game.board, player_move);
-
-    game.current_color = CCHESS_COLOR_OTHER_COLOR(game.current_color);
+    cchess_game_move(&game, player_move);
     free(possible_moves);
   }
 }

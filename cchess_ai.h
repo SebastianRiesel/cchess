@@ -23,7 +23,7 @@ float cchess_ai_minimax_piece_score(cchess_game_t *game);
 
 typedef struct {
   cchess_player_t player;
-  cchess_game_t current_game;
+  cchess_game_t* current_game;
   uint8_t depth;
   cchess_ai_score_func score_func;
 } cchess_ai_minimax_player_t;

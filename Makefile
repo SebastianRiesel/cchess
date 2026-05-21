@@ -1,6 +1,6 @@
-CFLAGS+=-Wall -Wextra -O3
+CFLAGS+=-Wall -Wextra -O3 -fsanitize=address
 
-all: main sdl_main
+all: sdl_main
 
 sdl_main: SDL_main.c cchess cchess_ai
 	cc $(CFLAGS) SDL_main.c cchess.o cchess_ai.o -o SDL_main  $(shell pkg-config --cflags --libs sdl3) $(shell pkg-config --cflags --libs sdl3-image)

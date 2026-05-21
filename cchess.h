@@ -23,7 +23,6 @@ typedef struct {
   cchess_color_t color;
   cchess_piece_type_t type;
   bool has_moved;
-  bool pawn_is_en_passantable;
 } cchess_piece_t;
 
 // chess board from whites perspective, a1 == x = 0, y = 0
@@ -52,7 +51,56 @@ typedef struct {
   cchess_move_t move;
   cchess_piece_t captured_piece; // for reversing the move
   cchess_piece_t moved_piece;    // original piece
+  int prev_en_passant_x;
+  int prev_en_passant_y;
+
 } cchess_stored_move_t;
+
+typedef struct {
+  cchess_stored_move_t *moves;
+  size_t size;
+  size_t capacity;
+} cchess_stored_move_stack_t;
+
+cchess_stored_move_stack_t *cchess_stored_move_stack_create();
+void cchess_stored_move_stack_destroy(cchess_stored_move_stack_t *stack);
+void cchess_stored_move_stack_push(cchess_stored_move_stack_t *stack,
+                                   cchess_stored_move_t move);
+cchess_stored_move_t
+cchess_stored_move_stack_pop(cchess_stored_move_stack_t *stack);
+
+size_t cchess_stored_move_stack_size(cchess_stored_move_stack_t *stack);
+
+typedef enum {
+  CCHESS_STATE_RUNNING,
+  CCHESS_STATE_WHITE_WON,
+  CCHESS_STATE_BLACK_WON,
+  CCHESS_STATE_STALEMATE
+} cchess_game_state_t;
+
+typedef struct {
+  cchess_board_t board;
+  cchess_color_t current_color;
+  cchess_game_state_t state;
+
+  int en_passant_x;
+  int en_passant_y;
+
+  cchess_stored_move_stack_t *moves;
+} cchess_game_t;
+
+typedef struct cchess_player_s cchess_player_t;
+
+typedef cchess_move_t (*cchess_player_input_callback)(cchess_player_t *self,
+                                                      cchess_move_t *moves,
+                                                      size_t len);
+typedef void (*cchess_player_output_callback)(cchess_player_t *self,
+                                              cchess_game_t* game);
+
+struct cchess_player_s {
+  cchess_player_output_callback out;
+  cchess_player_input_callback in;
+};
 
 void cchess_board_clear(cchess_board_t *board);
 void cchess_board_init(cchess_board_t *board);
@@ -63,27 +111,23 @@ cchess_piece_t cchess_board_set_piece(cchess_board_t *board, size_t x, size_t y,
 cchess_piece_t cchess_board_raw_move(cchess_board_t *board, size_t x1,
                                      size_t y1, size_t x2, size_t y2);
 void cchess_game_move(cchess_game_t *game, cchess_move_t move);
+void cchess_game_reverse_move(cchess_game_t *game);
 
 char cchess_piece_type_to_char(cchess_piece_type_t pt);
 int cchess_move_to_string(cchess_move_t move, char *dest, size_t size);
 int cchess_piece_to_string(cchess_piece_t piece, char *dest, size_t size);
 int cchess_board_to_string(cchess_board_t *board, char *dest, size_t size);
 
-bool cchess_board_color_is_in_check(cchess_board_t *board,
-                                    cchess_color_t color);
+bool cchess_game_is_checking(cchess_game_t *game);
+bool cchess_game_is_in_check(cchess_game_t *game);
 
-struct cchess_player_s {
-  cchess_player_output_callback out;
-  cchess_player_input_callback in;
-};
-
-size_t cchess_board_unfiltered_moves(
-    cchess_board_t *board, cchess_color_t color,
+size_t cchess_game_unfiltered_moves(
+    cchess_game_t *game,
     cchess_move_t **moves); // calculates all possible moves, without checking
-                            // for checks and King safety
-size_t cchess_board_moves(
-    cchess_board_t *board, cchess_color_t color,
+// for checks and King safety
+size_t cchess_game_moves(
+    cchess_game_t *game,
     cchess_move_t **moves); // calculates all possible moves, without the moves
-                            // that violate king safety
+// that violate king safety
 
 cchess_game_t cchess_play_game(cchess_player_t *white, cchess_player_t *black);
