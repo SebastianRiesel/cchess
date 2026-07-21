@@ -37,7 +37,6 @@ cchess_move_t tcp_player_get_move(cchess_player_t *self, cchess_move_t *moves, s
         exit(-1);
     }
 
-    // Deserialize: Expand the 1-byte integers back into your native system types
     internal_move.x1 = (size_t)net_move.x1;
     internal_move.y1 = (size_t)net_move.y1;
     internal_move.x2 = (size_t)net_move.x2;

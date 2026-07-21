@@ -349,7 +349,7 @@ SDL_AppResult SDL_AppInit(void **appstate_ptr, int argc, char *argv[]) {
            tcp_player->my_color == CCHESS_COLOR_WHITE ? "White" : "Black");
 
   } else {
-    // Host Mode: No arguments provided (argc == 1 is just the program name itself).
+
     printf("Host mode: Listening for incoming connections on port %d...\n", CCHESS_TCP_PORT);
 
     int status = cchess_tcp_player_listen(tcp_player);
