@@ -673,7 +673,7 @@ cchess_game_t cchess_play_game(cchess_player_t *white, cchess_player_t *black) {
     size_t moves_len = cchess_game_moves(&game, &possible_moves);
 
     if (moves_len == 0) {
-
+      free(possible_moves);
       if (cchess_game_is_in_check(&game)) {
         if (game.current_color == CCHESS_COLOR_WHITE) {
           game.state = CCHESS_STATE_BLACK_WON;

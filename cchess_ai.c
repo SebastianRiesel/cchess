@@ -48,55 +48,69 @@ float cchess_ai_minimax_piece_score(cchess_game_t *game) {
       }
     }
   }
-  return score+(float)rand() / RAND_MAX;
+  return score + (float)rand() / RAND_MAX;
 }
 
+float max(float a, float b) { return a > b ? a : b; }
+
+float min(float a, float b) { return a < b ? a : b; }
+
 float minimax_player_get_score(cchess_ai_minimax_player_t *self,
-                               cchess_game_t* game, uint8_t current_depth) {
+                               cchess_game_t *game, float alpha, float beta,
+                               uint8_t current_depth) {
   if (current_depth == self->depth) {
     return self->score_func(game);
   }
 
   cchess_move_t *possible_moves;
-  size_t moves_len =
-      cchess_game_moves(game, &possible_moves);
+  size_t moves_len = cchess_game_moves(game, &possible_moves);
 
   if (moves_len == 0) {
     free(possible_moves);
     if (cchess_game_is_in_check(game)) {
-      return game->current_color == CCHESS_COLOR_WHITE ? -FLT_MAX + current_depth
-                                                      : FLT_MAX - current_depth;
+      return game->current_color == CCHESS_COLOR_WHITE
+                 ? -FLT_MAX + current_depth
+                 : FLT_MAX - current_depth;
     }
     return 0;
   }
   float best_score;
 
   if (game->current_color == CCHESS_COLOR_WHITE) {
-    best_score = -FLT_MAX;
+    best_score = -INFINITY;
   } else {
-    best_score = FLT_MAX;
+    best_score = INFINITY;
   }
 
-  for (size_t i = 0; i < moves_len; i++) {
-    cchess_move_t move = possible_moves[i];
-    cchess_game_move(game, move);
+  if (game->current_color == CCHESS_COLOR_WHITE) {
+    for (size_t i = 0; i < moves_len; i++) {
+      cchess_move_t move = possible_moves[i];
+      cchess_game_move(game, move);
+      float score =
+          minimax_player_get_score(self, game, alpha, beta, current_depth + 1);
+      cchess_game_reverse_move(game);
+      best_score = max(score, best_score);
+      alpha = max(alpha, best_score); // best thing that white can guarantee
+      if (alpha >= beta) {
+        break;
+      }
 
-    if (game->current_color == CCHESS_COLOR_BLACK) {
-      // this means white moved, this is whites branch
-      float score = minimax_player_get_score(
-          self, game, current_depth + 1);
-      if (score > best_score) {
-        best_score = score;
-      }
-    } else {
-      // this means white moved, this is whites branch
-      float score = minimax_player_get_score(
-          self, game, current_depth + 1);
-      if (score < best_score) {
-        best_score = score;
-      }
     }
-    cchess_game_reverse_move(game);
+  } else {
+    for (size_t i = 0; i < moves_len; i++) {
+      cchess_move_t move = possible_moves[i];
+      cchess_game_move(game, move);
+      // this means white moved, this is whites branch
+      float score =
+          minimax_player_get_score(self, game, alpha, beta, current_depth + 1);
+      cchess_game_reverse_move(game);
+      best_score = min(score, best_score);
+      beta = min(beta, best_score); // best thing that white can guarantee
+      if (alpha >= beta) {
+        break;
+      }
+
+    }
   }
 
   free(possible_moves);
@@ -108,8 +122,7 @@ cchess_move_t minimax_player_get_move(cchess_player_t *self,
   cchess_ai_minimax_player_t *player = (cchess_ai_minimax_player_t *)self;
   cchess_game_t *game = player->current_game;
   cchess_move_t *possible_moves;
-  size_t moves_len =
-      cchess_game_moves(game, &possible_moves);
+  size_t moves_len = cchess_game_moves(game, &possible_moves);
 
   if (moves_len == 0) {
     free(possible_moves);
@@ -122,9 +135,9 @@ cchess_move_t minimax_player_get_move(cchess_player_t *self,
   cchess_move_t best_move;
 
   if (game->current_color == CCHESS_COLOR_WHITE) {
-    best_score = -FLT_MAX;
+    best_score = -INFINITY;
   } else {
-    best_score = FLT_MAX;
+    best_score = INFINITY;
   }
 
   for (size_t i = 0; i < moves_len; i++) {
@@ -133,15 +146,15 @@ cchess_move_t minimax_player_get_move(cchess_player_t *self,
 
     if (game->current_color == CCHESS_COLOR_BLACK) { // this means white moved
       float score =
-          minimax_player_get_score(player, game, 1);
-      if (score > best_score) {
+          minimax_player_get_score(player, game, best_score, INFINITY, 1);
+      if (score >= best_score) {
         best_score = score;
         best_move = move;
       }
     } else {
       float score =
-          minimax_player_get_score(player, game, 1);
-      if (score < best_score) {
+          minimax_player_get_score(player, game, -INFINITY, best_score, 1);
+      if (score <= best_score) {
         best_score = score;
         best_move = move;
       }
@@ -150,7 +163,7 @@ cchess_move_t minimax_player_get_move(cchess_player_t *self,
   }
   return best_move;
 }
-void minimax_player_store_game(cchess_player_t *self, cchess_game_t* game) {
+void minimax_player_store_game(cchess_player_t *self, cchess_game_t *game) {
   cchess_ai_minimax_player_t *player = (cchess_ai_minimax_player_t *)self;
   player->current_game = game;
 }

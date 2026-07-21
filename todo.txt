@@ -1,4 +1,0 @@
-
-- move reversing
-- proper is_square_attacked
-- SDL_player implementation with internal appstate-pointer

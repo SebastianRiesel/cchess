@@ -1,4 +1,4 @@
-
+#pragma once
 
 #include "cchess.h"
 #include <stddef.h>
