@@ -1,5 +1,7 @@
 
+#include "cchess_ai.h"
 #include <SDL3/SDL_events.h>
+#include <SDL3/SDL_init.h>
 #include <SDL3/SDL_mutex.h>
 #include <SDL3/SDL_rect.h>
 #include <SDL3/SDL_render.h>
@@ -277,6 +279,11 @@ void load_sprites(AppState *as) {
   LOAD_SPRITE(as, "black_pawn.svg", 11);
 }
 
+void print_usage(char* name){
+  printf("Usage:\n%s <mode> <args>\n", name);
+  printf("Modes:\n\tlocal\n\tlocal_vs_bot\n\thost\n\tconnect <ip_addr>\n");
+}
+
 /* This function runs once at startup. */
 SDL_AppResult SDL_AppInit(void **appstate_ptr, int argc, char *argv[]) {
   SDL_SetAppMetadata("CChess", "1.0", "de.sriesel.cchess");
@@ -332,10 +339,49 @@ SDL_AppResult SDL_AppInit(void **appstate_ptr, int argc, char *argv[]) {
     return SDL_APP_FAILURE;
   }
 
-  // 2. Check command line arguments
-  if (argc > 1) {
-    // Client Mode: An argument was provided. Treat argv[1] as the IP address.
-    char* host_ip = argv[1];
+  if(argc == 1){
+    printf("No arguments provided.");
+    print_usage(argv[0]);
+    return SDL_APP_FAILURE;
+  }
+
+  char* mode = argv[1];
+  start_game_data *data = SDL_malloc(sizeof(start_game_data));
+  *data = (start_game_data){CCHESS_COLOR_WHITE, NULL};
+
+  if(strcmp(mode,"local") == 0){
+    cchess_player_t* screen = (cchess_player_t*)SDL_malloc(sizeof(cchess_player_t));
+    *screen = (cchess_player_t){update_board, wait_for_input};
+    data->other_player = screen;
+    data->screen_color = CCHESS_COLOR_WHITE;
+
+  }else if(strcmp(mode,"local_vs_bot") == 0){
+    cchess_player_t* bot = (cchess_player_t*)cchess_ai_minimax_player_create(5,cchess_ai_minimax_piece_score);
+    data->other_player = bot;
+    data->screen_color = CCHESS_COLOR_WHITE;
+  }else if(strcmp(mode, "host") == 0){
+    printf("Host mode: Listening for incoming connections on port %d...\n", CCHESS_TCP_PORT);
+
+    int status = cchess_tcp_player_listen(tcp_player);
+    if (status != 0) {
+      fprintf(stderr, "Failed to set up host or accept connection. Error code: %d\n", status);
+      cchess_tcp_player_destroy(tcp_player);
+      return SDL_APP_FAILURE;
+    }
+
+    printf("Player connected! Assigned color: %s.\n",
+           tcp_player->my_color == CCHESS_COLOR_WHITE ? "White" : "Black");
+
+    data->screen_color = tcp_player->my_color;
+    data->other_player = (cchess_player_t*)tcp_player;
+  }else if(strcmp(mode, "connect") == 0){
+    if(argc < 2){
+      printf("Error: Please provide IP Adress of hosting player.");
+      return SDL_APP_FAILURE;
+
+    }
+
+    char* host_ip = argv[2];
     printf("Client mode: Attempting to connect to %s...\n", host_ip);
 
     int status = cchess_tcp_player_connect(tcp_player, host_ip);
@@ -348,23 +394,16 @@ SDL_AppResult SDL_AppInit(void **appstate_ptr, int argc, char *argv[]) {
     printf("Successfully connected! Playing as %s.\n",
            tcp_player->my_color == CCHESS_COLOR_WHITE ? "White" : "Black");
 
-  } else {
+    data->screen_color = tcp_player->my_color;
+    data->other_player = (cchess_player_t*) tcp_player;
 
-    printf("Host mode: Listening for incoming connections on port %d...\n", CCHESS_TCP_PORT);
+  }else{
 
-    int status = cchess_tcp_player_listen(tcp_player);
-    if (status != 0) {
-      fprintf(stderr, "Failed to set up host or accept connection. Error code: %d\n", status);
-      cchess_tcp_player_destroy(tcp_player);
-      return SDL_APP_FAILURE;
-    }
+    printf("Error: Please provide a correct mode.");
+    print_usage(argv[0]);
+    return SDL_APP_FAILURE;
 
-    printf("Player connected! Assigned color: %s.\n",
-           tcp_player->my_color == CCHESS_COLOR_WHITE ? "White" : "Black");
   }
-  start_game_data data_stack = {tcp_player->my_color, (cchess_player_t*)tcp_player};
-  start_game_data *data = SDL_malloc(sizeof(start_game_data));
-  *data = data_stack;
 
   state->game_thread = SDL_CreateThread(start_game, "game_thread", (void*)data);
 

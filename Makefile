@@ -1,4 +1,4 @@
-CFLAGS+=-Wall -Wextra -g -fsanitize=address
+CFLAGS+=-Wall -Wextra -g
 
 all: sdl_main
 
