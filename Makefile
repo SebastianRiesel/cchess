@@ -1,3 +1,5 @@
+
+
 CFLAGS+=-Wall -Wextra -Wpedantic -g -O2
 
 all: sdl_main

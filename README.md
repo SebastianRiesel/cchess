@@ -7,18 +7,13 @@ The game should support:
 - Castling
 - Pawn-Promotion
 - Checkmate
+- A minimax-based chess-bot
+- TCP Peer to Peer Connection
+- SDL3 GUI (bare-bones!)
 
 Other capaibilites of the project which are currently not integrated into the main program include:
-- A minimax-based chess-bot
 - Move-Reversing
 - Playing in a CLI
-- a dependency-injection-like architecture to inject the different kinds of interface implementations into the game logic:
-    - SDL3 GUI
-    - Terminal CLI
-    - Random Move
-    - Minimax Bot
-    - TCP Peer to Peer Connection
-    
 
 
 ## Dependencies
@@ -41,18 +36,28 @@ After building the project, the game should be runnable with
 ```
 ./cchess
 ```
-
-By default, the program will wait for incoming tcp connections, and when a connection has been established will start the game.
-
-The other player should run the program as:
+The following options are availaible
 
 ```
-./cchess <ip address>
+./cchess local
+./cchess local_vs_bot
+./cchess host
+./cchess connect <ip_addr>
 ```
 
-If there is a direct TCP connection possible, the game should then start on both clients.
+In a network where you can establish a direct peer-to-peer TCP connection over IPv4, one player can run with the `host` option to wait for a connection, while the other player can run with `connect <ip_addr>` to connect.
+
 
 ## Notice
 Feel free to report bugs or submit pull-requests, but since this is just a hobby project, I give no guarantuee to actually take a look at these or to maintain the project.
 
+## Roadmap
+Possible features for the future could include:
+- Caching of future moves for (possibly) better Minimax performance
+- Implementation of multiple difficulty levels of the chess-bot
+- Porting the network implementation to a platform-independent layer for cross-platform compatibility
+- Implementation of a UI with Qt or GTK, removing the need of command line options
+- Implementation of a Relay-Server for playing games over the internet
+- Exporting and Importing of positions in FEN 
+- A Game Viewer with forwards and backwards navigation
 
