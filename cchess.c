@@ -47,7 +47,7 @@ size_t cchess_stored_move_stack_size(cchess_stored_move_stack_t *stack) {
 }
 
 void cchess_board_clear(cchess_board_t *board) {
-  for (size_t i = 0; i < 64; i++) {
+  for (uint8_t i = 0; i < 64; i++) {
     cchess_piece_t p = {CCHESS_COLOR_WHITE, CCHESS_PIECE_NONE, 0};
     board->grid[i] = p;
   }
@@ -93,16 +93,20 @@ void cchess_board_init(cchess_board_t *board) {
 }
 
 
+cchess_piece_t cchess_board_get_piece(cchess_board_t *board, uint8_t x, uint8_t y) {
+  return board->grid[ARR_INDEX((x), (y))];
+}
 
-cchess_piece_t cchess_board_set_piece(cchess_board_t *board, size_t x, size_t y,
+
+cchess_piece_t cchess_board_set_piece(cchess_board_t *board, uint8_t x, uint8_t y,
                                       cchess_piece_t piece) {
   cchess_piece_t p = board->grid[ARR_INDEX(x, y)];
   board->grid[ARR_INDEX(x, y)] = piece;
   return p;
 }
 
-cchess_piece_t cchess_board_raw_move(cchess_board_t *board, size_t x1,
-                                     size_t y1, size_t x2, size_t y2) {
+cchess_piece_t cchess_board_raw_move(cchess_board_t *board, uint8_t x1,
+                                     uint8_t y1, uint8_t x2, uint8_t y2) {
   cchess_piece_t p = board->grid[ARR_INDEX(x2, y2)];
   board->grid[ARR_INDEX(x2, y2)] = board->grid[ARR_INDEX(x1, y1)];
   board->grid[ARR_INDEX(x1, y1)] =
@@ -113,7 +117,7 @@ cchess_piece_t cchess_board_raw_move(cchess_board_t *board, size_t x1,
 int cchess_move_to_string(cchess_move_t move, char *dest, size_t size) {
   int res;
   res =
-      snprintf(dest, size, "cchess_normal_move_t[x1=%ld,y1=%ld,x2=%ld,y2=%ld]",
+      snprintf(dest, size, "cchess_normal_move_t[x1=%u,y1=%u,x2=%u,y2=%u]",
                move.x1, move.y1, move.x2, move.y2);
 
   if (res < 0) {
@@ -215,16 +219,16 @@ int cchess_board_to_string(cchess_board_t *board, char *dest, size_t size) {
 }
 
 // lookup table for knight positions
-const ssize_t knight_x_offsets[] = {-1, 1, 2, 2, 1, -1, -2, -2};
-const ssize_t knight_y_offsets[] = {2, 2, 1, -1, -2, -2, 1, -1};
+const int8_t knight_x_offsets[] = {-1, 1, 2, 2, 1, -1, -2, -2};
+const int8_t knight_y_offsets[] = {2, 2, 1, -1, -2, -2, 1, -1};
 
 // diagonal walking directions
-const ssize_t diagional_x_directions[] = {1, 1, -1, -1};
-const ssize_t diagional_y_directions[] = {1, -1, 1, -1};
+const int8_t diagional_x_directions[] = {1, 1, -1, -1};
+const int8_t diagional_y_directions[] = {1, -1, 1, -1};
 
 // straight walking directions
-const ssize_t straight_x_directions[] = {1, -1, 0, 0};
-const ssize_t straight_y_directions[] = {0, 0, 1, -1};
+const int8_t straight_x_directions[] = {1, -1, 0, 0};
+const int8_t straight_y_directions[] = {0, 0, 1, -1};
 
 #define APPEND_MOVE(move_buf, len, move)                                       \
   {                                                                            \
@@ -234,12 +238,12 @@ const ssize_t straight_y_directions[] = {0, 0, 1, -1};
 #define M(x1, y1, x2, y2)                                                      \
   ((cchess_move_t){x1, y1, x2, y2, CCHESS_MOVE_NORMAL, CCHESS_PIECE_NONE})
 
-size_t append_walk(cchess_board_t *board, cchess_color_t color, size_t x,
-                   size_t y, ssize_t x_direction, ssize_t y_direction,
+size_t append_walk(cchess_board_t *board, cchess_color_t color, uint8_t x,
+                   uint8_t y, int8_t x_direction, int8_t y_direction,
                    cchess_move_t *moves) {
   size_t buf_len = 0;
-  ssize_t x2 = (ssize_t)x;
-  ssize_t y2 = (ssize_t)y;
+  int8_t x2 = (int8_t)x;
+  int8_t y2 = (int8_t)y;
   while (1) {
     x2 += x_direction;
     y2 += y_direction;
@@ -269,16 +273,16 @@ size_t cchess_game_unfiltered_moves(cchess_game_t *game,
   // assume there are no positions, where more than 500 moves are possible
   cchess_move_t *move_buf = (cchess_move_t *)calloc(500, sizeof(cchess_move_t));
   size_t buf_len = 0;
-  for (size_t y = 0; y < 8; y++) {
-    for (size_t x = 0; x < 8; x++) {
+  for (uint8_t y = 0; y < 8; y++) {
+    for (uint8_t x = 0; x < 8; x++) {
       // size_t i = ARR_INDEX(x,y);
       cchess_piece_t piece = cchess_board_get_piece(board, x, y);
       if (piece.color != color) {
         continue;
       }
-      int pawn_direction = color == CCHESS_COLOR_WHITE ? 1 : -1;
-      size_t pawn_start_rank = color == CCHESS_COLOR_WHITE ? 1 : 6;
-      size_t pawn_promotion_rank = color == CCHESS_COLOR_WHITE ? 7 : 0;
+      int8_t pawn_direction = color == CCHESS_COLOR_WHITE ? 1 : -1;
+      uint8_t pawn_start_rank = color == CCHESS_COLOR_WHITE ? 1 : 6;
+      uint8_t pawn_promotion_rank = color == CCHESS_COLOR_WHITE ? 7 : 0;
       switch (piece.type) {
       case CCHESS_PIECE_NONE:
         break;
@@ -353,8 +357,8 @@ size_t cchess_game_unfiltered_moves(cchess_game_t *game,
       case CCHESS_PIECE_KNIGHT:
         for (size_t k = 0; k < 8; k++) {
 
-          ssize_t x2 = (ssize_t)x + knight_x_offsets[k];
-          ssize_t y2 = (ssize_t)y + knight_y_offsets[k];
+          int8_t x2 = (int8_t)x + knight_x_offsets[k];
+          int8_t  y2 = (int8_t)y + knight_y_offsets[k];
 
           if (x2 < 0 || x2 > 7 || y2 < 0 || y2 > 7) {
             continue;
@@ -368,8 +372,8 @@ size_t cchess_game_unfiltered_moves(cchess_game_t *game,
         break;
       case CCHESS_PIECE_BISHOP:
         for (size_t k = 0; k < 4; k++) {
-          ssize_t x_dir = diagional_x_directions[k];
-          ssize_t y_dir = diagional_y_directions[k];
+          int8_t x_dir = diagional_x_directions[k];
+          int8_t y_dir = diagional_y_directions[k];
           size_t n = append_walk(board, color, x, y, x_dir, y_dir,
                                  (move_buf + buf_len));
           buf_len += n;
@@ -377,8 +381,8 @@ size_t cchess_game_unfiltered_moves(cchess_game_t *game,
         break;
       case CCHESS_PIECE_ROOK:
         for (size_t k = 0; k < 4; k++) {
-          ssize_t x_dir = straight_x_directions[k];
-          ssize_t y_dir = straight_y_directions[k];
+          int8_t x_dir = straight_x_directions[k];
+          int8_t y_dir = straight_y_directions[k];
           size_t n = append_walk(board, color, x, y, x_dir, y_dir,
                                  (move_buf + buf_len));
           buf_len += n;
@@ -386,15 +390,15 @@ size_t cchess_game_unfiltered_moves(cchess_game_t *game,
         break;
       case CCHESS_PIECE_QUEEN:
         for (size_t k = 0; k < 4; k++) {
-          ssize_t x_dir = straight_x_directions[k];
-          ssize_t y_dir = straight_y_directions[k];
+          int8_t x_dir = straight_x_directions[k];
+          int8_t y_dir = straight_y_directions[k];
           size_t n = append_walk(board, color, x, y, x_dir, y_dir,
                                  (move_buf + buf_len));
           buf_len += n;
         }
         for (size_t k = 0; k < 4; k++) {
-          ssize_t x_dir = diagional_x_directions[k];
-          ssize_t y_dir = diagional_y_directions[k];
+          int8_t x_dir = diagional_x_directions[k];
+          int8_t y_dir = diagional_y_directions[k];
           size_t n = append_walk(board, color, x, y, x_dir, y_dir,
                                  (move_buf + buf_len));
           buf_len += n;
@@ -402,10 +406,10 @@ size_t cchess_game_unfiltered_moves(cchess_game_t *game,
         break;
       case CCHESS_PIECE_KING:
         for (size_t k = 0; k < 4; k++) {
-          ssize_t x_dir = straight_x_directions[k];
-          ssize_t y_dir = straight_y_directions[k];
-          ssize_t x2 = x + x_dir;
-          ssize_t y2 = y + y_dir;
+          int8_t x_dir = straight_x_directions[k];
+          int8_t y_dir = straight_y_directions[k];
+          int8_t x2 = x + x_dir;
+          int8_t y2 = y + y_dir;
           if (x2 < 0 || x2 > 7 || y2 < 0 || y2 > 7) {
             continue;
           }
@@ -418,10 +422,10 @@ size_t cchess_game_unfiltered_moves(cchess_game_t *game,
           }
         }
         for (size_t k = 0; k < 4; k++) {
-          ssize_t x_dir = diagional_x_directions[k];
-          ssize_t y_dir = diagional_y_directions[k];
-          ssize_t x2 = x + x_dir;
-          ssize_t y2 = y + y_dir;
+          int8_t x_dir = diagional_x_directions[k];
+          int8_t y_dir = diagional_y_directions[k];
+          int8_t x2 = x + x_dir;
+          int8_t y2 = y + y_dir;
           if (x2 < 0 || x2 > 7 || y2 < 0 || y2 > 7) {
             continue;
           }
@@ -438,7 +442,7 @@ size_t cchess_game_unfiltered_moves(cchess_game_t *game,
           cchess_piece_t left_piece = cchess_board_get_piece(board, 0, y);
           if ((!left_piece.has_moved) && left_piece.type == CCHESS_PIECE_ROOK) {
             bool castle_possible = true;
-            for (size_t x2 = x - 1; x2 > 0; x2--) {
+            for (uint8_t x2 = x - 1; x2 > 0; x2--) {
               if (cchess_board_get_piece(board, x2, y).type !=
                   CCHESS_PIECE_NONE) {
                 castle_possible = false;
@@ -454,7 +458,7 @@ size_t cchess_game_unfiltered_moves(cchess_game_t *game,
           if ((!right_piece.has_moved) &&
               right_piece.type == CCHESS_PIECE_ROOK) {
             bool castle_possible = true;
-            for (size_t x2 = x + 1; x2 < 7; x2++) {
+            for (uint8_t x2 = x + 1; x2 < 7; x2++) {
               if (cchess_board_get_piece(board, x2, y).type !=
                   CCHESS_PIECE_NONE) {
                 castle_possible = false;
@@ -515,9 +519,9 @@ void cchess_game_move(cchess_game_t *game, cchess_move_t move) {
   }
 
   if (move.type == CCHESS_MOVE_CASTLE) {
-    if (((ssize_t)move.x2) > ((ssize_t)move.x1)) {
+    if (((int8_t)move.x2) > ((int8_t)move.x1)) {
       cchess_board_raw_move(board, 7, move.y1, move.x2 - 1, move.y1);
-    } else if (((ssize_t)move.x2) < ((ssize_t)move.x1)) {
+    } else if (((int8_t)move.x2) < ((int8_t)move.x1)) {
       cchess_board_raw_move(board, 0, move.y1, move.x2 + 1, move.y1);
     } else {
       printf("Error! Castle move data malformed!");
@@ -525,13 +529,13 @@ void cchess_game_move(cchess_game_t *game, cchess_move_t move) {
   }
 
   if (move.type == CCHESS_MOVE_EN_PASSANT) {
-    if (((ssize_t)move.y2) > ((ssize_t)move.y1)) {
+    if (((int8_t)move.y2) > ((int8_t)move.y1)) {
       stored_move.captured_piece =
           cchess_board_get_piece(board, move.x2, move.y2 - 1);
       cchess_board_set_piece(board, move.x2, move.y2 - 1,
                              (cchess_piece_t){CCHESS_COLOR_WHITE,
                                               CCHESS_PIECE_NONE, false});
-    } else if (((ssize_t)move.y2) < ((ssize_t)move.y1)) {
+    } else if (((int8_t)move.y2) < ((int8_t)move.y1)) {
       stored_move.captured_piece =
           cchess_board_get_piece(board, move.x2, move.y2 + 1);
       cchess_board_set_piece(board, move.x2, move.y2 + 1,

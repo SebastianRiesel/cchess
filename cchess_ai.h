@@ -26,6 +26,7 @@ typedef struct {
   cchess_game_t* current_game;
   uint8_t depth;
   cchess_ai_score_func score_func;
+  size_t count;
 } cchess_ai_minimax_player_t;
 
 cchess_ai_minimax_player_t *

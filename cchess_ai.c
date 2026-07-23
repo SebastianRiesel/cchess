@@ -2,6 +2,7 @@
 #include "cchess.h"
 #include <float.h>
 #include <stdlib.h>
+#include <math.h>
 
 cchess_move_t random_input(cchess_player_t *self, cchess_move_t *possible_moves,
                            size_t buf_len) {
@@ -58,7 +59,17 @@ float min(float a, float b) { return a < b ? a : b; }
 float minimax_player_get_score(cchess_ai_minimax_player_t *self,
                                cchess_game_t *game, float alpha, float beta,
                                uint8_t current_depth) {
-  if (current_depth == self->depth) {
+  self->count++;
+  if (current_depth >= self->depth) {
+
+    if(game->moves->moves[game->moves->size-1].captured_piece.type == CCHESS_PIECE_NONE){
+      return self->score_func(game);
+    }
+
+    // last move was a capture, dont return score yet
+  }
+
+  if(current_depth > self->depth+3){
     return self->score_func(game);
   }
 
@@ -69,8 +80,8 @@ float minimax_player_get_score(cchess_ai_minimax_player_t *self,
     free(possible_moves);
     if (cchess_game_is_in_check(game)) {
       return game->current_color == CCHESS_COLOR_WHITE
-                 ? -FLT_MAX + current_depth
-                 : FLT_MAX - current_depth;
+                 ? -100000.0f + current_depth
+                 : 100000.0f - current_depth;
     }
     return 0;
   }
@@ -82,12 +93,15 @@ float minimax_player_get_score(cchess_ai_minimax_player_t *self,
     best_score = INFINITY;
   }
 
+
+
   if (game->current_color == CCHESS_COLOR_WHITE) {
     for (size_t i = 0; i < moves_len; i++) {
       cchess_move_t move = possible_moves[i];
+
       cchess_game_move(game, move);
       float score =
-          minimax_player_get_score(self, game, alpha, beta, current_depth + 1);
+      minimax_player_get_score(self, game, alpha, beta, current_depth + 1);
       cchess_game_reverse_move(game);
       best_score = max(score, best_score);
       alpha = max(alpha, best_score); // best thing that white can guarantee
@@ -99,6 +113,8 @@ float minimax_player_get_score(cchess_ai_minimax_player_t *self,
   } else {
     for (size_t i = 0; i < moves_len; i++) {
       cchess_move_t move = possible_moves[i];
+
+
       cchess_game_move(game, move);
       // this means white moved, this is whites branch
       float score =
@@ -120,6 +136,7 @@ float minimax_player_get_score(cchess_ai_minimax_player_t *self,
 cchess_move_t minimax_player_get_move(cchess_player_t *self,
                                       cchess_move_t *moves, size_t buf_len) {
   cchess_ai_minimax_player_t *player = (cchess_ai_minimax_player_t *)self;
+  player->count = 0;
   cchess_game_t *game = player->current_game;
   cchess_move_t *possible_moves;
   size_t moves_len = cchess_game_moves(game, &possible_moves);
@@ -147,14 +164,14 @@ cchess_move_t minimax_player_get_move(cchess_player_t *self,
     if (game->current_color == CCHESS_COLOR_BLACK) { // this means white moved
       float score =
           minimax_player_get_score(player, game, best_score, INFINITY, 1);
-      if (score >= best_score) {
+      if (score > best_score) {
         best_score = score;
         best_move = move;
       }
     } else {
       float score =
           minimax_player_get_score(player, game, -INFINITY, best_score, 1);
-      if (score <= best_score) {
+      if (score < best_score) {
         best_score = score;
         best_move = move;
       }
@@ -163,6 +180,14 @@ cchess_move_t minimax_player_get_move(cchess_player_t *self,
   }
 
   free(possible_moves);
+
+  char buf[64];
+
+  cchess_move_to_string(best_move,buf ,63);
+
+  printf("Best move was %s with score %f\n", buf, best_score);
+  printf("Evaluated %lu positions.\n", player->count);
+
   return best_move;
 }
 void minimax_player_store_game(cchess_player_t *self, cchess_game_t *game) {
@@ -181,6 +206,7 @@ cchess_ai_minimax_player_create(uint8_t depth,
   player->player.out = minimax_player_store_game;
   return player;
 }
+
 void cchess_ai_minimax_player_destroy(cchess_ai_minimax_player_t *player) {
   free(player);
 }

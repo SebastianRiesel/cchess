@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 
 typedef enum { CCHESS_COLOR_WHITE = 0, CCHESS_COLOR_BLACK = 1 } cchess_color_t;
@@ -30,6 +31,10 @@ typedef struct s_cchess_board {
   cchess_piece_t grid[64];
 } cchess_board_t;
 
+
+#define ARR_INDEX(x, y) ((y) * 8 + (x))
+
+
 typedef enum {
   CCHESS_MOVE_NORMAL,
   CCHESS_MOVE_PAWN_DOUBLE,
@@ -39,10 +44,10 @@ typedef enum {
 } cchess_move_type_t;
 
 typedef struct {
-  size_t x1;
-  size_t y1;
-  size_t x2;
-  size_t y2;
+  uint8_t x1;
+  uint8_t y1;
+  uint8_t x2;
+  uint8_t y2;
   cchess_move_type_t type;
   cchess_piece_type_t promotion_type;
 } cchess_move_t;
@@ -51,8 +56,8 @@ typedef struct {
   cchess_move_t move;
   cchess_piece_t captured_piece; // for reversing the move
   cchess_piece_t moved_piece;    // original piece
-  int prev_en_passant_x;
-  int prev_en_passant_y;
+  int8_t prev_en_passant_x;
+  int8_t prev_en_passant_y;
 
 } cchess_stored_move_t;
 
@@ -104,13 +109,11 @@ struct cchess_player_s {
 
 void cchess_board_clear(cchess_board_t *board);
 void cchess_board_init(cchess_board_t *board);
-#define ARR_INDEX(x, y) ((y) * 8 + (x))
-#define cchess_board_get_piece(board, x, y) ((board)->grid[ARR_INDEX((x), (y))])
-
-cchess_piece_t cchess_board_set_piece(cchess_board_t *board, size_t x, size_t y,
+cchess_piece_t cchess_board_get_piece(cchess_board_t *board, uint8_t x, uint8_t y);
+cchess_piece_t cchess_board_set_piece(cchess_board_t *board, uint8_t x, uint8_t y,
                                       cchess_piece_t piece);
-cchess_piece_t cchess_board_raw_move(cchess_board_t *board, size_t x1,
-                                     size_t y1, size_t x2, size_t y2);
+cchess_piece_t cchess_board_raw_move(cchess_board_t *board, uint8_t x1,
+                                     uint8_t y1, uint8_t x2, uint8_t y2);
 void cchess_game_move(cchess_game_t *game, cchess_move_t move);
 void cchess_game_reverse_move(cchess_game_t *game);
 

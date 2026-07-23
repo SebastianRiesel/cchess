@@ -108,7 +108,7 @@ cchess_move_t wait_for_input(cchess_player_t *self,
           appstate->x_marked[appstate->marked_size] = move.x2;
           appstate->y_marked[appstate->marked_size] = 7 - move.y2;
           appstate->marked_size++;
-          SDL_Log("%lu|%lu -> %lu|%lu", move.x1, move.y1, move.x2, move.y2);
+          SDL_Log("%u|%u -> %u|%u", move.x1, move.y1, move.x2, move.y2);
         }
       }
       if (appstate->marked_size == 0) {
@@ -123,7 +123,7 @@ cchess_move_t wait_for_input(cchess_player_t *self,
         if (move.x1 == appstate->x1 && move.y1 == 7 - appstate->y1 &&
             move.x2 == appstate->x2 && move.y2 == 7 - appstate->y2) {
           selected_move = move;
-          SDL_Log("%lu|%lu -> %lu|%lu", selected_move.x1, selected_move.y1,
+          SDL_Log("%u|%u -> %u|%u", selected_move.x1, selected_move.y1,
                   selected_move.x2, selected_move.y2);
           selected = 1;
           appstate->pos1_selected = 0;
