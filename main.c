@@ -35,7 +35,7 @@ cchess_move_t get_possible_move_from_terminal(cchess_player_t *self,
   }
 }
 
-void print_board(cchess_player_t *self, cchess_game_t game) {
+void print_board(cchess_player_t *self, cchess_game_t* game) {
   char buf[BOARD_STR_SIZE];
   cchess_board_to_string(&game.board, buf, BOARD_STR_SIZE - 1);
   printf("%s", buf);

@@ -48,7 +48,7 @@ float cchess_ai_minimax_piece_score(cchess_game_t *game) {
       }
     }
   }
-  return score + (float)rand() / RAND_MAX;
+  return score;
 }
 
 float max(float a, float b) { return a > b ? a : b; }
@@ -161,6 +161,8 @@ cchess_move_t minimax_player_get_move(cchess_player_t *self,
     }
     cchess_game_reverse_move(game);
   }
+
+  free(possible_moves);
   return best_move;
 }
 void minimax_player_store_game(cchess_player_t *self, cchess_game_t *game) {

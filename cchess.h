@@ -104,8 +104,9 @@ struct cchess_player_s {
 
 void cchess_board_clear(cchess_board_t *board);
 void cchess_board_init(cchess_board_t *board);
-cchess_piece_t cchess_board_get_piece(cchess_board_t *board, size_t x,
-                                      size_t y);
+#define ARR_INDEX(x, y) ((y) * 8 + (x))
+#define cchess_board_get_piece(board, x, y) ((board)->grid[ARR_INDEX((x), (y))])
+
 cchess_piece_t cchess_board_set_piece(cchess_board_t *board, size_t x, size_t y,
                                       cchess_piece_t piece);
 cchess_piece_t cchess_board_raw_move(cchess_board_t *board, size_t x1,

@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define ARR_INDEX(x, y) (y * 8 + x)
+
 
 #define STORED_MOVE_STACK_INIT_CAP 500
 cchess_stored_move_stack_t *cchess_stored_move_stack_create() {
@@ -92,11 +92,7 @@ void cchess_board_init(cchess_board_t *board) {
 #undef BGA
 }
 
-cchess_piece_t cchess_board_get_piece(cchess_board_t *board, size_t x,
-                                      size_t y) {
 
-  return board->grid[ARR_INDEX(x, y)];
-}
 
 cchess_piece_t cchess_board_set_piece(cchess_board_t *board, size_t x, size_t y,
                                       cchess_piece_t piece) {
@@ -273,8 +269,8 @@ size_t cchess_game_unfiltered_moves(cchess_game_t *game,
   // assume there are no positions, where more than 500 moves are possible
   cchess_move_t *move_buf = (cchess_move_t *)calloc(500, sizeof(cchess_move_t));
   size_t buf_len = 0;
-  for (size_t x = 0; x < 8; x++) {
-    for (size_t y = 0; y < 8; y++) {
+  for (size_t y = 0; y < 8; y++) {
+    for (size_t x = 0; x < 8; x++) {
       // size_t i = ARR_INDEX(x,y);
       cchess_piece_t piece = cchess_board_get_piece(board, x, y);
       if (piece.color != color) {
