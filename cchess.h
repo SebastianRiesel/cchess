@@ -64,10 +64,10 @@ typedef enum {
 } cchess_move_type_t;
 
 typedef struct {
-  uint8_t x1;
-  uint8_t y1;
-  uint8_t x2;
-  uint8_t y2;
+  int8_t x1;
+  int8_t y1;
+  int8_t x2;
+  int8_t y2;
   cchess_move_type_t type;
   cchess_piece_type_t promotion_type;
 } cchess_move_t;
@@ -129,11 +129,11 @@ struct cchess_player_s {
 
 void cchess_board_clear(cchess_board_t *board);
 void cchess_board_init(cchess_board_t *board);
-cchess_piece_t cchess_board_get_piece(cchess_board_t *board, uint8_t x, uint8_t y);
-cchess_piece_t cchess_board_set_piece(cchess_board_t *board, uint8_t x, uint8_t y,
+cchess_piece_t cchess_board_get_piece(cchess_board_t *board, int8_t x, int8_t y);
+cchess_piece_t cchess_board_set_piece(cchess_board_t *board, int8_t x, int8_t y,
                                       cchess_piece_t piece);
-cchess_piece_t cchess_board_raw_move(cchess_board_t *board, uint8_t x1,
-                                     uint8_t y1, uint8_t x2, uint8_t y2);
+cchess_piece_t cchess_board_raw_move(cchess_board_t *board, int8_t x1,
+                                     int8_t y1, int8_t x2, int8_t y2);
 void cchess_game_move(cchess_game_t *game, cchess_move_t move);
 void cchess_game_reverse_move(cchess_game_t *game);
 
