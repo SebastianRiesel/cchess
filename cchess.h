@@ -147,11 +147,11 @@ bool cchess_game_is_in_check(cchess_game_t *game);
 
 size_t cchess_game_unfiltered_moves(
     cchess_game_t *game,
-    cchess_move_t **moves); // calculates all possible moves, without checking
+    cchess_move_t *move_buf); // calculates all possible moves, without checking
 // for checks and King safety
 size_t cchess_game_moves(
     cchess_game_t *game,
-    cchess_move_t **moves); // calculates all possible moves, without the moves
+    cchess_move_t *move_buf); // calculates all possible moves, without the moves
 // that violate king safety
 
 cchess_game_t cchess_play_game(cchess_player_t *white, cchess_player_t *black);

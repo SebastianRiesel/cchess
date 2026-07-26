@@ -93,11 +93,10 @@ float minimax_player_get_score(cchess_ai_minimax_player_t *self,
     return self->score_func(game);
   }
 
-  cchess_move_t *possible_moves;
-  size_t moves_len = cchess_game_moves(game, &possible_moves);
+  cchess_move_t possible_moves[250];
+  size_t moves_len = cchess_game_moves(game, possible_moves);
 
   if (moves_len == 0) {
-    free(possible_moves);
     if (cchess_game_is_in_check(game)) {
       return game->current_color == CCHESS_COLOR_WHITE
                  ? -100000.0f + current_depth
@@ -149,7 +148,6 @@ float minimax_player_get_score(cchess_ai_minimax_player_t *self,
     }
   }
 
-  free(possible_moves);
   return best_score;
 }
 
@@ -158,11 +156,10 @@ cchess_move_t minimax_player_get_move(cchess_player_t *self,
   cchess_ai_minimax_player_t *player = (cchess_ai_minimax_player_t *)self;
   player->count = 0;
   cchess_game_t *game = player->current_game;
-  cchess_move_t *possible_moves;
-  size_t moves_len = cchess_game_moves(game, &possible_moves);
+  cchess_move_t possible_moves[250];
+  size_t moves_len = cchess_game_moves(game, possible_moves);
 
   if (moves_len == 0) {
-    free(possible_moves);
     printf("Error: This point should not be reachable: %s at line %i", __FILE__,
            __LINE__);
     return (cchess_move_t){};
@@ -199,7 +196,6 @@ cchess_move_t minimax_player_get_move(cchess_player_t *self,
     cchess_game_reverse_move(game);
   }
 
-  free(possible_moves);
 
   char buf[64];
 

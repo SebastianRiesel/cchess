@@ -26,8 +26,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define MOVE_BUF_SIZE 250
 
-#define STORED_MOVE_STACK_INIT_CAP 500
+#define STORED_MOVE_STACK_INIT_CAP 100
 cchess_stored_move_stack_t *cchess_stored_move_stack_create() {
   cchess_stored_move_t *moves = (cchess_stored_move_t *)malloc(
       sizeof(cchess_stored_move_t) * STORED_MOVE_STACK_INIT_CAP);
@@ -137,7 +138,7 @@ cchess_piece_t cchess_board_raw_move(cchess_board_t *board, int8_t x1,
 int cchess_move_to_string(cchess_move_t move, char *dest, size_t size) {
   int res;
   res =
-      snprintf(dest, size, "cchess_normal_move_t[x1=%u,y1=%u,x2=%u,y2=%u]",
+      snprintf(dest, size, "cchess_normal_move_t[x1=%d,y1=%d,x2=%d,y2=%d]",
                move.x1, move.y1, move.x2, move.y2);
 
   if (res < 0) {
@@ -204,7 +205,7 @@ int cchess_board_to_string(cchess_board_t *board, char *dest, size_t size) {
 
   size_t n = row_len;
   strncpy(dest, row_str, row_len + 1);
-  for (ssize_t y = 7; y >= 0; y--) {
+  for (int8_t y = 7; y >= 0; y--) {
     if (size - n <= 2) {
       return n;
     }
@@ -212,7 +213,7 @@ int cchess_board_to_string(cchess_board_t *board, char *dest, size_t size) {
     dest[n++] = ' ';
     dest[n] = '\0';
 
-    for (size_t x = 0; x < 8; x++) {
+    for (int8_t x = 0; x < 8; x++) {
       if (size - n <= 1) {
         return n;
       }
@@ -287,11 +288,11 @@ size_t append_walk(cchess_board_t *board, cchess_color_t color, int8_t x,
 }
 
 size_t cchess_game_unfiltered_moves(cchess_game_t *game,
-                                    cchess_move_t **moves) {
+                                    cchess_move_t *move_buf) {
   cchess_board_t *board = &game->board;
   cchess_color_t color = game->current_color;
   // assume there are no positions, where more than 500 moves are possible
-  cchess_move_t *move_buf = (cchess_move_t *)calloc(500, sizeof(cchess_move_t));
+  //cchess_move_t *move_buf = (cchess_move_t *)calloc(500, sizeof(cchess_move_t));
   size_t buf_len = 0;
   for (int8_t y = 0; y < 8; y++) {
     for (int8_t x = 0; x < 8; x++) {
@@ -496,7 +497,6 @@ size_t cchess_game_unfiltered_moves(cchess_game_t *game,
       }
     }
   }
-  *moves = move_buf;
   return buf_len;
 }
 #undef APPEND_MOVE
@@ -631,19 +631,17 @@ void cchess_game_reverse_move(cchess_game_t *game) {
 
 bool cchess_game_is_checking(cchess_game_t *game) {
 
-  cchess_move_t *moves;
-  size_t len = cchess_game_unfiltered_moves(game, &moves);
+  cchess_move_t moves[MOVE_BUF_SIZE];
+  size_t len = cchess_game_unfiltered_moves(game, moves);
   for (size_t i = 0; i < len; i++) {
     cchess_move_t move = moves[i];
     cchess_piece_t captured_piece =
         cchess_board_get_piece(&game->board, move.x2, move.y2);
     if (captured_piece.color == CCHESS_COLOR_OTHER_COLOR(game->current_color) &&
         captured_piece.type == CCHESS_PIECE_KING) {
-      free(moves);
       return true;
     }
   }
-  free(moves);
   return false;
 }
 
@@ -661,9 +659,8 @@ bool valid_move(cchess_game_t *game, cchess_move_t move) {
   return valid;
 }
 
-size_t cchess_game_moves(cchess_game_t *game, cchess_move_t **moves) {
-  cchess_move_t *move_buf;
-  size_t len = cchess_game_unfiltered_moves(game, &move_buf);
+size_t cchess_game_moves(cchess_game_t *game, cchess_move_t *move_buf) {
+  size_t len = cchess_game_unfiltered_moves(game, move_buf);
   size_t next_copy_index = 0;
   for (size_t i = 0; i < len; i++) {
     if (valid_move(game, move_buf[i])) {
@@ -671,7 +668,6 @@ size_t cchess_game_moves(cchess_game_t *game, cchess_move_t **moves) {
       next_copy_index++;
     }
   }
-  *moves = move_buf;
   return next_copy_index;
 }
 
@@ -689,11 +685,10 @@ cchess_game_t cchess_play_game(cchess_player_t *white, cchess_player_t *black) {
       black->out(black, &game);
     }
 
-    cchess_move_t *possible_moves;
-    size_t moves_len = cchess_game_moves(&game, &possible_moves);
+    cchess_move_t possible_moves[MOVE_BUF_SIZE];
+    size_t moves_len = cchess_game_moves(&game, possible_moves);
 
     if (moves_len == 0) {
-      free(possible_moves);
       if (cchess_game_is_in_check(&game)) {
         if (game.current_color == CCHESS_COLOR_WHITE) {
           game.state = CCHESS_STATE_BLACK_WON;
@@ -717,6 +712,5 @@ cchess_game_t cchess_play_game(cchess_player_t *white, cchess_player_t *black) {
     }
 
     cchess_game_move(&game, player_move);
-    free(possible_moves);
   }
 }
