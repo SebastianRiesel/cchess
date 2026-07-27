@@ -23,6 +23,7 @@
 #include <float.h>
 #include <stdlib.h>
 #include <math.h>
+#include <time.h>
 
 cchess_move_t random_input(cchess_player_t *self, cchess_move_t *possible_moves,
                            size_t buf_len) {
@@ -150,9 +151,13 @@ float minimax_player_get_score(cchess_ai_minimax_player_t *self,
 
   return best_score;
 }
-
 cchess_move_t minimax_player_get_move(cchess_player_t *self,
                                       cchess_move_t *moves, size_t buf_len) {
+
+  struct timespec start, stop;
+
+  clock_gettime(CLOCK_THREAD_CPUTIME_ID, &start);
+
   cchess_ai_minimax_player_t *player = (cchess_ai_minimax_player_t *)self;
   player->count = 0;
   cchess_game_t *game = player->current_game;
@@ -201,9 +206,17 @@ cchess_move_t minimax_player_get_move(cchess_player_t *self,
 
   cchess_move_to_string(best_move,buf ,63);
 
-  printf("Best move was %s with score %f\n", buf, best_score);
-  printf("Evaluated %lu positions.\n", player->count);
 
+  clock_gettime(CLOCK_THREAD_CPUTIME_ID, &stop);
+
+  // in micro seconds
+  double time = (stop.tv_sec - start.tv_sec) * 1e6 + (stop.tv_nsec - start.tv_nsec) / 1e3;
+
+  double speed = (double)player->count / time * 1e6; // positions per second
+
+  printf("Best move was %s with score %f\n", buf, best_score);
+  printf("Evaluated %lu positions in %f seconds.\n", player->count, time);
+  printf("%f positions/second\n", speed);
   return best_move;
 }
 void minimax_player_store_game(cchess_player_t *self, cchess_game_t *game) {

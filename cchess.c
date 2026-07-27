@@ -22,9 +22,11 @@
 #include <SDL3/SDL_log.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #define MOVE_BUF_SIZE 250
 
@@ -628,7 +630,7 @@ void cchess_game_reverse_move(cchess_game_t *game) {
     break;
   }
 }
-
+/*
 bool cchess_game_is_checking(cchess_game_t *game) {
 
   cchess_move_t moves[MOVE_BUF_SIZE];
@@ -643,6 +645,139 @@ bool cchess_game_is_checking(cchess_game_t *game) {
     }
   }
   return false;
+}
+*/
+
+bool cchess_game_is_checking(cchess_game_t* game){
+  // find king position of other color
+  int8_t king_y = 0;
+  int8_t king_x = 0;
+
+  bool break_loop = false;
+
+  for(; king_y < 8; king_y++){
+    king_x = 0;
+    for(; king_x < 8; king_x++){
+      cchess_piece_t piece = cchess_board_get_piece(&game->board,king_x ,king_y );
+      if(piece.type == CCHESS_PIECE_KING && piece.color != game->current_color){
+        break_loop = true;
+        break;
+      }
+    }
+
+    if(break_loop) break;
+  }
+
+  if(king_y == 8){
+    printf("Error: No king found on the board!");
+    return false;
+  }
+
+  // do marching in all directions
+
+  for(int8_t dx = -1; dx <= 1; dx += 1){
+    for(int8_t dy = -1;  dy <= 1;dy += 1){
+        if(dx == 0 && dy == 0)continue;
+
+        int8_t x = king_x + dx;
+        int8_t y = king_y + dy;
+        while(y < 8 && y >= 0 && x < 8 && x >= 0){
+
+          cchess_piece_t piece = cchess_board_get_piece(&game->board,x ,y );
+          if(piece.color == game->current_color){
+            if(piece.type == CCHESS_PIECE_QUEEN){
+              return true;
+            }
+
+            if((dx == 0 || dy == 0) && piece.type == CCHESS_PIECE_ROOK){
+              return true;
+            }
+
+            if(dx != 0 && dy != 0 && piece.type == CCHESS_PIECE_BISHOP){
+              return true;
+            }
+
+
+          }
+          if(piece.type != CCHESS_PIECE_NONE){
+            break;
+          }
+
+          x += dx;
+          y += dy;
+
+      }
+
+    }
+  }
+
+  // do knight checks
+
+  for (size_t k = 0; k < 8; k++) {
+
+    int8_t x = king_x + knight_x_offsets[k];
+    int8_t  y = king_y + knight_y_offsets[k];
+
+    if (x < 0 || x > 7 || y < 0 || y > 7) {
+      continue;
+    }
+
+    cchess_piece_t piece = cchess_board_get_piece(&game->board, x, y);
+    if(piece.type == CCHESS_PIECE_KNIGHT && piece.color == game->current_color){
+      return true;
+    }
+  }
+  // do king checks
+  for(int8_t dx = -1; dx <= 1; dx += 1){
+    for(int8_t dy = -1;  dy <= 1;dy += 1){
+      if(dx == 0 && dy == 0)continue;
+
+      int8_t x = king_x + dx;
+      int8_t y = king_y + dy;
+
+
+      if (x < 0 || x > 7 || y < 0 || y > 7) {
+        continue;
+      }
+
+      cchess_piece_t piece = cchess_board_get_piece(&game->board, x, y);
+
+      if(piece.type == CCHESS_PIECE_KING && piece.color == game->current_color){
+        return true;
+      }
+    }
+
+  }
+
+  int8_t x1,x2,y;
+  // do two pawn checks
+  if(game->current_color == CCHESS_COLOR_WHITE){
+    y = king_y - 1;
+  }else{
+    y = king_y + 1;
+  }
+  x1 = king_x + 1;
+  x2 = king_x - 1;
+
+  if(y >= 0 && y < 8){
+    if(x1 >= 0 && x1 < 8 ){
+      cchess_piece_t piece = cchess_board_get_piece(&game->board,x1 ,y );
+      if(piece.type == CCHESS_PIECE_PAWN && piece.color == game->current_color){
+        return true;
+      }
+    }
+
+    if(x2 >= 0 && x2 < 8 ){
+      cchess_piece_t piece = cchess_board_get_piece(&game->board,x2 ,y );
+      if(piece.type == CCHESS_PIECE_PAWN && piece.color == game->current_color){
+        return true;
+      }
+    }
+  }
+
+  return false;
+
+
 }
 
 bool cchess_game_is_in_check(cchess_game_t *game) {
